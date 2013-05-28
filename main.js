@@ -16,17 +16,17 @@ function ImageMagickIdentifyReader(text, camelCase) {
     throw new Error('Invalid argument `text`: must be a String.');
   }
 
-  var data = {
-    rawInput: text
-  };
+  var data = {};
 
-  var input = text.trim();
+  var input = text; // text.trim() would create another instance
 
   // If input is empty, no need to bother parsing it.
-  if (input === '') return;
+  if (input === '') return data;
 
   // Each new line should start with *at least* two spaces. This fixes 1st line.
-  input = ('  ' + input).split("\n");
+  // input = ('  ' + input);
+  var new_line_index = 0;
+  var animated_image_count = 0;
 
   var stack = [data];
   var lastDepth = 1;
@@ -43,7 +43,22 @@ function ImageMagickIdentifyReader(text, camelCase) {
 
   var t = this;
 
-  input.forEach(function(line, i) {
+  while (new_line_index != -1) {
+    next_new_line_index = input.indexOf('\n', new_line_index);
+    if (next_new_line_index == -1) {
+      line = input.substring(new_line_index);
+      new_line_index = -1;
+    }
+    else {
+      line = input.substring(new_line_index, next_new_line_index+1);
+      new_line_index = next_new_line_index+1;
+    }
+
+    if (line.match(/^Image:/)) {
+      // for now, skip later animated images. We should really return an array of exif data.
+      if (++animated_image_count > 1) break;
+    }
+
     var index = line.indexOf(':');
 
     // The line *must* contain a colon to be processed. This currently skips the
@@ -66,9 +81,12 @@ function ImageMagickIdentifyReader(text, camelCase) {
         }
       }
 
-      var depth = line.match(/^Image:/) ? 1 : line.match(/^ +/)[0].length / 2; // BUG FIX FOR ANIMATED GIFS
+      var raw_depth = line.match(/^ +/);
+      var depth = raw_depth ? raw_depth[0].length / 2 : 1;
       var key = line.slice(0, index).trim();
       var value = line.slice(index + 1).trim() || {};
+
+      // console.log('depth: ' + depth + ' stack: ' + require('util').inspect(stack));
 
       if (camelCase) {
         // Replace all non-word and underscore characters with a non-sequential space.
@@ -96,7 +114,7 @@ function ImageMagickIdentifyReader(text, camelCase) {
 
         } else if (value.match(/^undefined$/i)) {
           // Convert boolean FALSE looking values to `false`.
-          return;
+          continue;
         }
       }
 
@@ -116,7 +134,7 @@ function ImageMagickIdentifyReader(text, camelCase) {
       if (key.match(/^Histogram$/i) || key.match(/^Colormap$/i)) {
         inHistogram = true;
         histogramDepth = depth;
-        return;
+        continue;
       }
       // Very long histogram counts might trigger the first test.
       // 2nd check: Does key look like a word rather than a number?
@@ -124,13 +142,14 @@ function ImageMagickIdentifyReader(text, camelCase) {
         inHistogram = false;
       }
       if (inHistogram === true) {
-        return;
+        continue;
       }
       /////////////////////////
       // END https://github.com/dandean/imagemagick-identify-parser/pull/5
       /////////////////////////
 
       if (depth === lastDepth) {
+
         // Add the key/value pair to the last object in the stack
         stack[stack.length-1][key] = value;
 
@@ -157,7 +176,7 @@ function ImageMagickIdentifyReader(text, camelCase) {
       }
 
     }
-  });
+  }
 
   return data;
 }
