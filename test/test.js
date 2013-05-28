@@ -11,9 +11,9 @@ describe('Module', function(){
     assert.ok(result instanceof String === false);
   });
 
-  it('should retain a reference to the raw input', function() {
-    assert.ok(Object.prototype.toString.call(result.rawInput) === '[object String]');
-  });
+  // it('should retain a reference to the raw input', function() {
+  //   assert.ok(Object.prototype.toString.call(result.rawInput) === '[object String]');
+  // });
 
   it('should convert integer-like values to a Number', function() {
     // Zero
