@@ -32,6 +32,15 @@ function ImageMagickIdentifyReader(text, camelCase) {
   var lastDepth = 1;
   var lastKey;
 
+  /////////////////////////
+  // BEGIN https://github.com/dandean/imagemagick-identify-parser/pull/5
+  /////////////////////////
+  var inHistogram = false;
+  var histogramDepth;
+  /////////////////////////
+  // END https://github.com/dandean/imagemagick-identify-parser/pull/5
+  /////////////////////////
+
   var t = this;
 
   input.forEach(function(line, i) {
@@ -57,7 +66,7 @@ function ImageMagickIdentifyReader(text, camelCase) {
         }
       }
 
-      var depth = line.match(/^Image:/) ? 1 : line.match(/^ +/)[0].length / 2;
+      var depth = line.match(/^Image:/) ? 1 : line.match(/^ +/)[0].length / 2; // BUG FIX FOR ANIMATED GIFS
       var key = line.slice(0, index).trim();
       var value = line.slice(index + 1).trim() || {};
 
@@ -98,6 +107,28 @@ function ImageMagickIdentifyReader(text, camelCase) {
         data.width = parseInt(parts[0], 10);
         data.height = parseInt(parts[1], 10);
       }
+
+      /////////////////////////
+      // BEGIN https://github.com/dandean/imagemagick-identify-parser/pull/5
+      /////////////////////////
+      // Histogram and Colormap need special treatment since
+      // their value tables are not left-aligned.
+      if (key.match(/^Histogram$/i) || key.match(/^Colormap$/i)) {
+        inHistogram = true;
+        histogramDepth = depth;
+        return;
+      }
+      // Very long histogram counts might trigger the first test.
+      // 2nd check: Does key look like a word rather than a number?
+      if (depth === histogramDepth && key.match(/^\D+$/)) {
+        inHistogram = false;
+      }
+      if (inHistogram === true) {
+        return;
+      }
+      /////////////////////////
+      // END https://github.com/dandean/imagemagick-identify-parser/pull/5
+      /////////////////////////
 
       if (depth === lastDepth) {
         // Add the key/value pair to the last object in the stack
