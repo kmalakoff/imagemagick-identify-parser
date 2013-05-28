@@ -57,7 +57,7 @@ function ImageMagickIdentifyReader(text, camelCase) {
         }
       }
 
-      var depth = line.match(/^ +/)[0].length / 2;
+      var depth = line.match(/^Image:/) ? 1 : line.match(/^ +/)[0].length / 2;
       var key = line.slice(0, index).trim();
       var value = line.slice(index + 1).trim() || {};
 
